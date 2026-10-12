@@ -1,0 +1,23 @@
+api: yes
+apiAddress: :9997
+
+authMethod: internal
+authInternalUsers:
+  - user: dashboard
+    pass: change-this-password
+    ips: []
+    permissions:
+      - action: api
+      - action: read
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8190
+
+# Replace this with the LAN IP of the computer running Docker.
+webrtcAdditionalHosts: [10.39.1.51]

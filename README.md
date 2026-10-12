@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Run with Docker
+
+Docker Compose runs the dashboard and MediaMTX together. Edit `mediamtx.yml`
+first and replace `192.168.1.100` with the LAN IP of the computer running
+Docker. Then run:
+
+```bash
+docker compose up -d --build
+```
+
+Open `http://DOCKER_HOST_LAN_IP:3001` from another device on the same network.
+Allow inbound TCP port `3001` and UDP port `8190` in the host firewall. The
+Docker host must also be able to reach the NVR camera IPs.
+
+Stop the services with `docker compose down`.

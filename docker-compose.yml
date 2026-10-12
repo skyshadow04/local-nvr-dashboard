@@ -1,0 +1,23 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    ports:
+      - "9997:9997"
+      - "8889:8889"
+      - "8190:8190/udp"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  dashboard:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    environment:
+      MEDIAMTX_URL: http://mediamtx:9997
+      MEDIAMTX_WHEP_URL: http://mediamtx:8889
+      MEDIAMTX_API_USER: dashboard
+      MEDIAMTX_API_PASSWORD: change-this-password
+    ports:
+      - "3001:3000"
