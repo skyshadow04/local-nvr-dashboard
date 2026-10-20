@@ -20,4 +20,4 @@ webrtcAddress: :8889
 webrtcLocalUDPAddress: :8190
 
 # Replace this with the LAN IP of the computer running Docker.
-webrtcAdditionalHosts: [10.39.1.51]
+webrtcAdditionalHosts: [10.39.1.252]

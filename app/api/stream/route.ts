@@ -1,8 +1,26 @@
 import { NextResponse } from 'next/server';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 const MEDIAMTX_BASE = process.env.MEDIAMTX_URL || 'http://127.0.0.1:9997';
 const MEDIAMTX_API_USER = process.env.MEDIAMTX_API_USER || 'dashboard';
 const MEDIAMTX_API_PASSWORD = process.env.MEDIAMTX_API_PASSWORD || 'change-this-password';
+const CAMERA_NAMES_FILE = process.env.CAMERA_NAMES_FILE || '/tmp/local-nvr-camera-names.json';
+
+async function readCameraNames(): Promise<Record<string, string>> {
+  try {
+    const contents = await readFile(CAMERA_NAMES_FILE, 'utf8');
+    const names: unknown = JSON.parse(contents);
+    return names && typeof names === 'object' && !Array.isArray(names)
+      ? names as Record<string, string>
+      : {};
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+}
 
 function mediaMtxHeaders() {
   const credentials = Buffer.from(`${MEDIAMTX_API_USER}:${MEDIAMTX_API_PASSWORD}`).toString('base64');
@@ -25,9 +43,11 @@ export async function GET() {
     }
 
     const pathList = await response.json();
+    const cameraNames = await readCameraNames();
     const cameras = (pathList.items || []).flatMap((path: { name?: string; source?: string }) => {
-      const match = path.name?.match(/^cam_(\d{1,3}(?:_\d{1,3}){3})_(\d+)_(main|sub)$/);
-      if (!match || !path.source) return [];
+      const pathName = path.name;
+      const match = pathName?.match(/^cam_(\d{1,3}(?:_\d{1,3}){3})_(\d+)_(main|sub)$/);
+      if (!pathName || !match || !path.source) return [];
 
       let sourcePath: string;
       try {
@@ -48,8 +68,8 @@ export async function GET() {
       const stream = match[3] as 'main' | 'sub';
 
       return [{
-        id: path.name,
-        name: `Camera ${ip} CH${channel} (${stream === 'main' ? 'Main' : 'Sub'})`,
+        id: pathName,
+        name: cameraNames[pathName] || `Camera ${ip} CH${channel} (${stream === 'main' ? 'Main' : 'Sub'})`,
         type,
         ip,
         channel,
@@ -62,6 +82,33 @@ export async function GET() {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown stream list error' },
       { status: 502 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { id, name } = await request.json();
+    if (typeof id !== 'string' || !/^cam_\d{1,3}(?:_\d{1,3}){3}_\d+_(?:main|sub)$/.test(id)) {
+      return NextResponse.json({ error: 'Invalid camera id.' }, { status: 400 });
+    }
+    if (typeof name !== 'string') {
+      return NextResponse.json({ error: 'Camera name must be text.' }, { status: 400 });
+    }
+
+    const cameraNames = await readCameraNames();
+    const normalizedName = name.trim().slice(0, 60);
+    if (normalizedName) cameraNames[id] = normalizedName;
+    else delete cameraNames[id];
+
+    await mkdir(dirname(CAMERA_NAMES_FILE), { recursive: true });
+    await writeFile(CAMERA_NAMES_FILE, JSON.stringify(cameraNames, null, 2), 'utf8');
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unknown camera name update error' },
+      { status: 500 }
     );
   }
 }

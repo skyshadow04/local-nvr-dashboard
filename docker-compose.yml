@@ -19,5 +19,11 @@ services:
       MEDIAMTX_WHEP_URL: http://mediamtx:8889
       MEDIAMTX_API_USER: dashboard
       MEDIAMTX_API_PASSWORD: change-this-password
+      CAMERA_NAMES_FILE: /data/camera-names.json
     ports:
       - "3001:3000"
+    volumes:
+      - dashboard-data:/data
+
+volumes:
+  dashboard-data:

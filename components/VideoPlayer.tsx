@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 interface VideoPlayerProps {
   streamId: string;
   cameraName: string;
+  singleView?: boolean;
 }
 
-export default function VideoPlayer({ streamId, cameraName }: VideoPlayerProps) {
+export default function VideoPlayer({ streamId, cameraName, singleView = false }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +122,7 @@ export default function VideoPlayer({ streamId, cameraName }: VideoPlayerProps) 
   }, [streamId]);
 
   return (
-    <div className="relative bg-black rounded-lg overflow-hidden aspect-video border border-slate-800">
+    <div className={`relative bg-black rounded-lg overflow-hidden border border-slate-800 ${singleView ? 'h-full w-full' : 'aspect-video'}`}>
       <div className="absolute top-2 left-2 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded">
         {cameraName}
       </div>
@@ -137,7 +138,7 @@ export default function VideoPlayer({ streamId, cameraName }: VideoPlayerProps) 
           controls
           playsInline
           preload="auto"
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${singleView ? 'object-contain' : 'object-cover'}`}
         />
       )}
     </div>
