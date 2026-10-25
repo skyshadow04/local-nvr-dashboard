@@ -11,13 +11,23 @@ interface Camera {
   stream: 'main' | 'sub';
 }
 
+const CAMERA_ORDER_STORAGE_KEY = 'local-nvr-dashboard-camera-order';
+const FULLSCREEN_VIEW_COUNTS = [1, 4, 8, 16, 32] as const;
+type FullscreenViewCount = typeof FULLSCREEN_VIEW_COUNTS[number];
+
 export default function Home() {
   const dashboardRef = useRef<HTMLElement>(null);
+  const cameraOrderRef = useRef<string[]>([]);
+  const cameraOrderLoadedRef = useRef(false);
+  const fullscreenSelectionInitializedRef = useRef(false);
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [editingCameraId, setEditingCameraId] = useState<string | null>(null);
+  const [draggedCameraId, setDraggedCameraId] = useState<string | null>(null);
+  const [dropTargetCameraId, setDropTargetCameraId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fullscreenCameraIndex, setFullscreenCameraIndex] = useState(0);
+  const [fullscreenCameraIds, setFullscreenCameraIds] = useState<string[]>([]);
+  const [fullscreenViewCount, setFullscreenViewCount] = useState<FullscreenViewCount>(1);
   const [viewMode, setViewMode] = useState<'auto' | '2x2' | '3x3' | '4x4'>('auto');
   const [scanSummary, setScanSummary] = useState('No streams connected yet.');
 
@@ -29,8 +39,18 @@ export default function Home() {
   const [startChannel, setStartChannel] = useState(1);
   const [endChannel, setEndChannel] = useState(16);
   const [stream, setStream] = useState<'main' | 'sub'>('sub'); // Default to sub-stream for grid layouts
-  const activeFullscreenCameraIndex = Math.min(fullscreenCameraIndex, Math.max(cameras.length - 1, 0));
-  const activeFullscreenCamera = cameras[activeFullscreenCameraIndex];
+  const fullscreenCameras = fullscreenCameraIds
+    .map((id) => cameras.find((camera) => camera.id === id))
+    .filter((camera): camera is Camera => camera !== undefined);
+  const fullscreenColumns = Math.ceil(Math.sqrt(Math.max(fullscreenCameras.length, 1)));
+  const fullscreenRows = Math.ceil(fullscreenCameras.length / fullscreenColumns);
+
+  const sortCamerasNumerically = (first: Camera, second: Camera) => {
+    const ipComparison = first.ip.localeCompare(second.ip, undefined, { numeric: true });
+    if (ipComparison !== 0) return ipComparison;
+    if (first.channel !== second.channel) return first.channel - second.channel;
+    return first.stream.localeCompare(second.stream);
+  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -42,27 +62,34 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!isFullscreen) return;
+    if (cameras.length > 0 && !fullscreenSelectionInitializedRef.current) {
+      fullscreenSelectionInitializedRef.current = true;
+      setFullscreenCameraIds([cameras[0].id]);
+      return;
+    }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (cameras.length === 0) return;
-      if (event.target instanceof HTMLElement && event.target.closest('button, input, select, textarea, video')) {
-        return;
-      }
-
-      if (event.key === 'ArrowLeft') {
-        setFullscreenCameraIndex(Math.max(activeFullscreenCameraIndex - 1, 0));
-      } else if (event.key === 'ArrowRight') {
-        setFullscreenCameraIndex(Math.min(activeFullscreenCameraIndex + 1, cameras.length - 1));
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen, cameras.length, activeFullscreenCameraIndex]);
+    const availableIds = new Set(cameras.map((camera) => camera.id));
+    setFullscreenCameraIds((current) => {
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [cameras]);
 
   useEffect(() => {
     let active = true;
+
+    if (!cameraOrderLoadedRef.current) {
+      cameraOrderLoadedRef.current = true;
+      try {
+        const savedOrder = window.localStorage.getItem(CAMERA_ORDER_STORAGE_KEY);
+        const parsedOrder: unknown = savedOrder ? JSON.parse(savedOrder) : [];
+        if (Array.isArray(parsedOrder) && parsedOrder.every((id) => typeof id === 'string')) {
+          cameraOrderRef.current = parsedOrder;
+        }
+      } catch (error: unknown) {
+        console.warn('Could not load the saved camera order:', error);
+      }
+    }
 
     const refreshCameras = async () => {
       try {
@@ -72,10 +99,23 @@ export default function Home() {
         if (active) {
           setCameras((current) => {
             const currentNames = new Map(current.map((camera) => [camera.id, camera.name]));
-            return (data.cameras || []).map((camera: Camera) => ({
-              ...camera,
-              name: camera.id === editingCameraId ? currentNames.get(camera.id) || camera.name : camera.name,
-            }));
+            const refreshed = ((data.cameras || []) as Camera[])
+              .map((camera) => ({
+                ...camera,
+                name: camera.id === editingCameraId ? currentNames.get(camera.id) || camera.name : camera.name,
+              }))
+              .sort(sortCamerasNumerically);
+            const camerasById = new Map(refreshed.map((camera: Camera) => [camera.id, camera]));
+            const preferredOrder = cameraOrderRef.current.length
+              ? cameraOrderRef.current
+              : current.map((camera) => camera.id);
+            const ordered = preferredOrder
+              .map((id) => camerasById.get(id))
+              .filter((camera): camera is Camera => camera !== undefined);
+            const orderedIds = new Set(ordered.map((camera) => camera.id));
+            const next = [...ordered, ...refreshed.filter((camera: Camera) => !orderedIds.has(camera.id))];
+            cameraOrderRef.current = next.map((camera) => camera.id);
+            return next;
           });
         }
       } catch (error: unknown) {
@@ -98,6 +138,51 @@ export default function Home() {
     setCameras((current) => current.map((camera) => (
       camera.id === cameraId ? { ...camera, name } : camera
     )));
+  };
+
+  const moveCamera = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+
+    const sourceIndex = cameras.findIndex((camera) => camera.id === sourceId);
+    const targetIndex = cameras.findIndex((camera) => camera.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const reordered = [...cameras];
+    const [camera] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, camera);
+    cameraOrderRef.current = reordered.map((item) => item.id);
+    setCameras(reordered);
+    const selectedCameraIds = new Set(fullscreenCameraIds);
+    setFullscreenCameraIds(
+      reordered.filter((item) => selectedCameraIds.has(item.id)).map((item) => item.id)
+    );
+
+    try {
+      window.localStorage.setItem(CAMERA_ORDER_STORAGE_KEY, JSON.stringify(cameraOrderRef.current));
+    } catch (error: unknown) {
+      console.warn('Could not save the camera order:', error);
+    }
+  };
+
+  const toggleFullscreenCamera = (cameraId: string, selected: boolean) => {
+    setFullscreenCameraIds((current) => {
+      if (selected) {
+        return current.includes(cameraId) || current.length >= fullscreenViewCount
+          ? current
+          : [...current, cameraId];
+      }
+      return current.filter((id) => id !== cameraId);
+    });
+  };
+
+  const updateFullscreenViewCount = (count: FullscreenViewCount) => {
+    setFullscreenViewCount(count);
+    setFullscreenCameraIds((current) => current.slice(0, count));
+  };
+
+  const closeCameraView = (cameraId: string) => {
+    toggleFullscreenCamera(cameraId, false);
+    setScanSummary('Camera closed from view.');
   };
 
   const saveCameraName = async (cameraId: string, name: string) => {
@@ -145,14 +230,15 @@ export default function Home() {
   };
 
   const resolvedColumns = (() => {
-    if (cameras.length === 0) return 1;
+    if (fullscreenCameras.length === 0) return 1;
     if (viewMode === 'auto') {
-      return Math.min(Math.max(Math.ceil(Math.sqrt(cameras.length)), 1), 4);
+      return Math.min(Math.max(Math.ceil(Math.sqrt(fullscreenCameras.length)), 1), 4);
     }
-    return { '2x2': 2, '3x3': 3, '4x4': 4 }[viewMode] ?? 1;
+    const requestedColumns = { '2x2': 2, '3x3': 3, '4x4': 4 }[viewMode] ?? 1;
+    return Math.min(requestedColumns, fullscreenCameras.length);
   })();
 
-  const resolvedRows = Math.ceil(cameras.length / resolvedColumns) || 1;
+  const resolvedRows = Math.ceil(fullscreenCameras.length / resolvedColumns) || 1;
 
   const addCamera = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -355,91 +441,154 @@ export default function Home() {
               Exit full screen
             </button>
           )}
-          <div className={`mb-3 flex items-center justify-between gap-3 text-xs text-slate-400 ${isFullscreen ? 'pr-32' : ''}`}>
-            <span>{isFullscreen && activeFullscreenCamera ? activeFullscreenCamera.name : `${cameras.length} connected`}</span>
-            {!isFullscreen && <span className="truncate text-right">{scanSummary}</span>}
-          </div>
+          {!isFullscreen && (
+            <div className="mb-3 flex items-center justify-between gap-3 text-xs text-slate-400">
+              <span>{cameras.length} connected</span>
+              <span className="truncate text-right">
+                {cameras.length > 1 ? 'Drag cameras to rearrange · ' : ''}
+                {scanSummary}
+              </span>
+            </div>
+          )}
 
-          {cameras.length === 0 ? (
+          {isFullscreen ? (
+            fullscreenCameras.length > 0 ? (
+              <div
+                className="grid h-full min-h-0 min-w-0 flex-1 gap-3"
+                style={{
+                  gridTemplateColumns: `repeat(${fullscreenColumns}, minmax(0, 1fr))`,
+                  gridTemplateRows: `repeat(${fullscreenRows}, minmax(0, 1fr))`,
+                }}
+              >
+                {fullscreenCameras.map((camera, index) => (
+                  <VideoPlayer
+                    key={camera.id}
+                    streamId={camera.id}
+                    cameraName={`${index + 1}. ${camera.name}`}
+                    singleView
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex h-full min-h-0 flex-1 items-center justify-center text-slate-500">
+                Select a camera to load its stream.
+              </div>
+            )
+          ) : cameras.length === 0 ? (
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-xl h-[calc(100%-116px)] text-slate-500">
               <p>No streams connected yet.</p>
               <p className="text-xs mt-1">Configure an NVR source on the left to activate WebRTC grid rendering.</p>
             </div>
           ) : (
-            isFullscreen ? (
-              <div className="flex min-h-0 flex-1 flex-col gap-2 sm:gap-3">
-                <div className="relative min-h-0 flex-1">
-                  {activeFullscreenCamera && (
-                    <VideoPlayer
-                      key={activeFullscreenCamera.id}
-                      streamId={activeFullscreenCamera.id}
-                      cameraName={activeFullscreenCamera.name}
-                      singleView
-                    />
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFullscreenCameraIndex(Math.max(activeFullscreenCameraIndex - 1, 0))}
-                    disabled={activeFullscreenCameraIndex === 0}
-                    aria-label="Previous camera"
-                    className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Previous
-                  </button>
+            <div className="flex h-[calc(100%-116px)] min-h-0 flex-col gap-3">
+              <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
+                <label className="flex items-center gap-2 text-sm text-slate-200">
+                  Maximum cameras to load
                   <select
-                    aria-label="Select fullscreen camera"
-                    value={activeFullscreenCamera?.id ?? ''}
+                    aria-label="Maximum cameras to load"
+                    value={fullscreenViewCount}
                     onChange={(event) => {
-                      const nextIndex = cameras.findIndex((camera) => camera.id === event.target.value);
-                      if (nextIndex >= 0) setFullscreenCameraIndex(nextIndex);
+                      const count = FULLSCREEN_VIEW_COUNTS.find(
+                        (option) => option === Number(event.target.value)
+                      );
+                      if (count) updateFullscreenViewCount(count);
                     }}
-                    className="max-w-[45vw] rounded border border-slate-700 bg-slate-900 px-2 py-2 text-sm text-slate-200"
+                    className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
                   >
-                    {cameras.map((camera, index) => (
-                      <option key={camera.id} value={camera.id}>
-                        {index + 1}. {camera.name}
-                      </option>
+                    {FULLSCREEN_VIEW_COUNTS.map((count) => (
+                      <option key={count} value={count}>{count} {count === 1 ? 'camera' : 'cameras'}</option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => setFullscreenCameraIndex(Math.min(activeFullscreenCameraIndex + 1, cameras.length - 1))}
-                    disabled={activeFullscreenCameraIndex >= cameras.length - 1}
-                    aria-label="Next camera"
-                    className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                  <span className="hidden text-xs text-slate-400 sm:inline">
-                    {activeFullscreenCameraIndex + 1} / {cameras.length}
-                  </span>
-                </div>
+                </label>
+                <details className="relative z-20">
+                  <summary className="cursor-pointer rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200">
+                    Select cameras ({fullscreenCameras.length}/{fullscreenViewCount})
+                  </summary>
+                  <div className="absolute left-0 top-full mt-1 max-h-56 w-72 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
+                    {cameras.map((camera, index) => (
+                      <label
+                        key={camera.id}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fullscreenCameraIds.includes(camera.id)}
+                          disabled={
+                            !fullscreenCameraIds.includes(camera.id) &&
+                            fullscreenCameraIds.length >= fullscreenViewCount
+                          }
+                          onChange={(event) => toggleFullscreenCamera(camera.id, event.target.checked)}
+                          className="accent-blue-500"
+                        />
+                        <span className="min-w-0 truncate">{index + 1}. {camera.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+                <span className="text-xs text-slate-400">
+                  Unselected cameras do not load.
+                </span>
               </div>
-            ) : (
-            <div
-              className="grid h-[calc(100%-116px)] gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${resolvedColumns}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${resolvedRows}, minmax(0, 1fr))`,
-              }}
-            >
-              {cameras.map((cam) => (
-                <div key={cam.id} className="relative min-h-0 group">
-                  <button
-                    type="button"
-                    onClick={() => removeCamera(cam.id)}
-                    className="absolute right-2 top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white border border-slate-700 hover:bg-red-600 transition"
-                    aria-label={`Remove ${cam.name}`}
-                  >
-                    ×
-                  </button>
-                  <VideoPlayer streamId={cam.id} cameraName={cam.name} />
+              {fullscreenCameras.length > 0 ? (
+                <div
+                  className="grid min-h-0 flex-1 gap-3"
+                  style={{
+                    gridTemplateColumns: `repeat(${resolvedColumns}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${resolvedRows}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {fullscreenCameras.map((cam, index) => (
+                    <div
+                      key={cam.id}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', cam.id);
+                        setDraggedCameraId(cam.id);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        setDropTargetCameraId(cam.id);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const sourceId = event.dataTransfer.getData('text/plain') || draggedCameraId;
+                        if (sourceId) moveCamera(sourceId, cam.id);
+                        setDraggedCameraId(null);
+                        setDropTargetCameraId(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedCameraId(null);
+                        setDropTargetCameraId(null);
+                      }}
+                      className={`group relative min-h-0 cursor-grab active:cursor-grabbing ${
+                        draggedCameraId === cam.id ? 'opacity-40' : ''
+                      } ${
+                        dropTargetCameraId === cam.id && draggedCameraId !== cam.id
+                          ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-950'
+                          : ''
+                      }`}
+                      aria-label={`Draggable camera tile: ${cam.name}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => closeCameraView(cam.id)}
+                        className="absolute right-2 top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white border border-slate-700 hover:bg-red-600 transition"
+                        aria-label={`Close ${cam.name} from view`}
+                      >
+                        ×
+                      </button>
+                      <VideoPlayer streamId={cam.id} cameraName={`${index + 1}. ${cam.name}`} />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border-2 border-dashed border-slate-800 text-slate-500">
+                  Select a camera to load its stream.
+                </div>
+              )}
             </div>
-            )
           )}
         </div>
       </div>

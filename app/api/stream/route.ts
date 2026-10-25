@@ -140,19 +140,33 @@ async function registerPath({ id, type, ip, username, password, channel, stream 
   stream: 'main' | 'sub';
 }) {
   const rtspUrl = buildRtspUrl({ type, ip, username, password, channel, stream });
-  const mediaMTXPath = new URL(`/v3/config/paths/add/${encodeURIComponent(id)}`, MEDIAMTX_BASE).toString();
+  const pathConfig = JSON.stringify({
+    source: rtspUrl,
+    sourceProtocol: 'tcp',
+    sourceOnDemand: true,
+  });
 
   let response: Response;
   try {
-    response = await fetch(mediaMTXPath, {
-      method: 'POST',
-      headers: mediaMtxHeaders(),
-      body: JSON.stringify({
-        source: rtspUrl,
-        sourceProtocol: 'tcp',
-        sourceOnDemand: true,
-      }),
-    });
+    response = await fetch(
+      new URL(`/v3/config/paths/replace/${encodeURIComponent(id)}`, MEDIAMTX_BASE),
+      {
+        method: 'POST',
+        headers: mediaMtxHeaders(),
+        body: pathConfig,
+      }
+    );
+
+    if (response.status === 404) {
+      response = await fetch(
+        new URL(`/v3/config/paths/add/${encodeURIComponent(id)}`, MEDIAMTX_BASE),
+        {
+          method: 'POST',
+          headers: mediaMtxHeaders(),
+          body: pathConfig,
+        }
+      );
+    }
   } catch (fetchError: unknown) {
     throw new Error(
       `MediaMTX is not reachable at ${MEDIAMTX_BASE}. Start MediaMTX or set MEDIAMTX_URL. ${fetchError instanceof Error ? fetchError.message : ''}`
@@ -160,7 +174,7 @@ async function registerPath({ id, type, ip, username, password, channel, stream 
   }
 
   const responseText = await response.text();
-  if (!response.ok && response.status !== 400) {
+  if (!response.ok) {
     throw new Error(
       `MediaMTX rejected the stream route (${response.status}): ${responseText || response.statusText}`
     );

@@ -12,6 +12,32 @@ export default function VideoPlayer({ streamId, cameraName, singleView = false }
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function waitForIceGatheringComplete(peerConnection: RTCPeerConnection): Promise<void> {
+    if (peerConnection.iceGatheringState === 'complete') return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timed out gathering WebRTC network candidates. Check that UDP port 8190 is reachable.'));
+      }, 10000);
+
+      const handleGatheringStateChange = () => {
+        if (peerConnection.iceGatheringState === 'complete') {
+          cleanup();
+          resolve();
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        peerConnection.removeEventListener('icegatheringstatechange', handleGatheringStateChange);
+      };
+
+      peerConnection.addEventListener('icegatheringstatechange', handleGatheringStateChange);
+      handleGatheringStateChange();
+    });
+  }
+
   useEffect(() => {
     let active = true;
     let pc: RTCPeerConnection | null = null;
@@ -64,6 +90,8 @@ export default function VideoPlayer({ streamId, cameraName, singleView = false }
 
         const offer = await pc.createOffer({ offerToReceiveVideo: true });
         await pc.setLocalDescription(offer);
+        await waitForIceGatheringComplete(pc);
+        if (!active) return;
 
         const whepUrl = `/api/whep/${encodeURIComponent(streamId)}`;
         const res = await fetch(whepUrl, {
