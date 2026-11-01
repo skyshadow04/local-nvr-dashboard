@@ -108,6 +108,48 @@ WebRTC address and media traffic must also be routable from that client. This
 setup is designed for a trusted LAN; do not expose it directly to the public
 internet.
 
+## Native Android viewer
+
+The `android-app` directory contains a native Kotlin Android viewer for the
+camera streams already registered in the dashboard. It lists configured
+cameras and opens one live camera at a time; use the web dashboard to add or
+remove camera streams.
+
+1. Install Tailscale on the Android phone and sign in to the same tailnet as the
+   Docker host.
+2. Open `android-app` in Android Studio, install Android SDK 35 if prompted,
+   and run the `app` configuration on a phone or emulator.
+3. In the app, enter the dashboard address reachable over Tailscale, for
+   example `http://<DOCKER_HOST_TAILSCALE_IP>:3001`, then tap **Connect**.
+4. Select a camera to start its WebRTC stream. Keep Tailscale connected while
+   viewing.
+
+The app uses the dashboard's `/api/stream` and `/api/whep` endpoints. It does
+not connect directly to the MediaMTX management API or store NVR credentials.
+The current setup permits HTTP for private-network compatibility; use it only
+over Tailscale or a trusted LAN, never over the public internet. For a public
+or app-store deployment, configure HTTPS and application-level authentication
+before exposing the dashboard.
+
+## Native iOS viewer
+
+The `ios-app` directory contains a native SwiftUI viewer for the same cameras.
+It lists streams configured in the web dashboard and plays one camera at a
+time using WebRTC. Camera setup remains in the web dashboard.
+
+1. On a Mac with Xcode 16 or newer, open `ios-app/LocalNVR.xcodeproj`.
+2. Let Xcode download the pinned WebRTC Swift package and select your Apple
+   Developer signing team for the `LocalNVR` target.
+3. Install Tailscale on the iPhone and sign in to the same tailnet as the
+   Docker host.
+4. Run the app on the phone, enter `http://<DOCKER_HOST_TAILSCALE_IP>:3001`,
+   tap **Connect / Refresh**, and select a camera.
+
+The iOS app allows unencrypted HTTP to support the current private Tailscale
+setup. Use it only on a trusted LAN or tailnet. Before distributing the app or
+using it outside Tailscale, configure HTTPS and application-level
+authentication, then remove the broad HTTP exception from `Info.plist`.
+
 ## Stop
 
 ```bash

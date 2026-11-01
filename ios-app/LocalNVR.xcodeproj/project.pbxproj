@@ -1,0 +1,109 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+		A10000000000000000000001 /* LocalNVRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* LocalNVRApp.swift */; };
+		A10000000000000000000002 /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* Camera.swift */; };
+		A10000000000000000000003 /* DashboardClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* DashboardClient.swift */; };
+		A10000000000000000000004 /* CameraListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CameraListView.swift */; };
+		A10000000000000000000005 /* WHEPPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* WHEPPlayer.swift */; };
+		A10000000000000000000006 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000001 /* WebRTC */; };
+		A20000000000000000000001 /* LocalNVRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNVRApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* DashboardClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* CameraListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* WHEPPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WHEPPlayer.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A30000000000000000000001 /* LocalNVR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalNVR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A40000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+			A10000000000000000000001 /* LocalNVRApp.swift in Sources */,
+			A10000000000000000000002 /* Camera.swift in Sources */,
+			A10000000000000000000003 /* DashboardClient.swift in Sources */,
+			A10000000000000000000004 /* CameraListView.swift in Sources */,
+			A10000000000000000000005 /* WHEPPlayer.swift in Sources */,
+		); runOnlyForDeploymentPostprocessing = 0; };
+		A40000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (
+			A10000000000000000000006 /* WebRTC in Frameworks */,
+		); runOnlyForDeploymentPostprocessing = 0; };
+		A40000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A50000000000000000000001 /* LocalNVR */ = {isa = PBXGroup; children = (
+			A20000000000000000000001 /* LocalNVRApp.swift */,
+			A20000000000000000000002 /* Camera.swift */,
+			A20000000000000000000003 /* DashboardClient.swift */,
+			A20000000000000000000004 /* CameraListView.swift */,
+			A20000000000000000000005 /* WHEPPlayer.swift */,
+			A20000000000000000000006 /* Info.plist */,
+		); path = LocalNVR; sourceTree = "<group>"; };
+		A50000000000000000000002 = {isa = PBXGroup; children = (
+			A50000000000000000000001 /* LocalNVR */,
+			A50000000000000000000003 /* Products */,
+		); sourceTree = "<group>"; };
+		A50000000000000000000003 /* Products */ = {isa = PBXGroup; children = (
+			A30000000000000000000001 /* LocalNVR.app */,
+		); name = Products; sourceTree = "<group>"; };
+		A60000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {
+			BuildIndependentTargetsInParallel = 1;
+			LastUpgradeCheck = 1600;
+			TargetAttributes = {A60000000000000000000002 = {CreatedOnToolsVersion = 16.0; }; };
+		}; buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXProject */;
+		compatibilityVersion = "Xcode 16.0";
+		developmentRegion = en;
+		hasScannedForEncodings = 0;
+		knownRegions = (en, Base);
+		mainGroup = A50000000000000000000002;
+		packageReferences = (A80000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */,);
+		productRefGroup = A50000000000000000000003 /* Products */;
+		projectDirPath = "";
+		projectRoot = "";
+		targets = (A60000000000000000000002 /* LocalNVR */,);
+		};
+		A60000000000000000000002 /* LocalNVR */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget */; buildPhases = (
+			A40000000000000000000001 /* Sources */,
+			A40000000000000000000002 /* Frameworks */,
+			A40000000000000000000003 /* Resources */,
+		); buildRules = (); dependencies = (); name = LocalNVR; packageProductDependencies = (
+			A70000000000000000000001 /* WebRTC */,
+		); productName = LocalNVR; productReference = A30000000000000000000001 /* LocalNVR.app */; productType = "com.apple.product-type.application"; };
+		A70000000000000000000001 /* WebRTC */ = {isa = XCSwiftPackageProductDependency; package = A80000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */; productName = WebRTC; };
+		A80000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/stasel/WebRTC.git"; requirement = {kind = exactVersion; version = 156.0.0; }; };
+		A90000000000000000000001 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (
+			AA0000000000000000000001 /* Debug */,
+			AA0000000000000000000002 /* Release */,
+		); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget */ = {isa = XCConfigurationList; buildConfigurations = (
+			AA0000000000000000000003 /* Debug */,
+			AA0000000000000000000004 /* Release */,
+		); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			SDKROOT = iphoneos;
+		}; name = Debug; };
+		AA0000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			SDKROOT = iphoneos;
+		}; name = Release; };
+		AA0000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = LocalNVR/Info.plist;
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.localnvr.dashboard.ios;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = "1,2";
+		}; name = Debug; };
+		AA0000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = LocalNVR/Info.plist;
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.localnvr.dashboard.ios;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = "1,2";
+		}; name = Release; };
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}

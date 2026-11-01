@@ -461,12 +461,45 @@ export default function Home() {
                 }}
               >
                 {fullscreenCameras.map((camera, index) => (
-                  <VideoPlayer
+                  <div
                     key={camera.id}
-                    streamId={camera.id}
-                    cameraName={`${index + 1}. ${camera.name}`}
-                    singleView
-                  />
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', camera.id);
+                      setDraggedCameraId(camera.id);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      setDropTargetCameraId(camera.id);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const sourceId = event.dataTransfer.getData('text/plain') || draggedCameraId;
+                      if (sourceId) moveCamera(sourceId, camera.id);
+                      setDraggedCameraId(null);
+                      setDropTargetCameraId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedCameraId(null);
+                      setDropTargetCameraId(null);
+                    }}
+                    className={`group relative min-h-0 cursor-grab active:cursor-grabbing ${
+                      draggedCameraId === camera.id ? 'opacity-40' : ''
+                    } ${
+                      dropTargetCameraId === camera.id && draggedCameraId !== camera.id
+                        ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-950'
+                        : ''
+                    }`}
+                    aria-label={`Draggable camera tile: ${camera.name}`}
+                  >
+                    <VideoPlayer
+                      streamId={camera.id}
+                      cameraName={`${index + 1}. ${camera.name}`}
+                      singleView
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
