@@ -100,6 +100,10 @@ should use the dashboard URL above; they do not need to access the MediaMTX API.
   NVR address, credentials, channel, and stream profile.
 - Use an H.264 stream profile. H.265/HEVC streams may be rejected by the
   browser's WebRTC decoder.
+- The dashboard displays a loading/reconnecting indicator while a feed starts.
+  It automatically retries connections and restarts a feed if video frames
+  stop advancing; check the displayed camera, firewall, and NVR errors if it
+  keeps retrying.
 - Check service logs with `docker compose logs mediamtx` and
   `docker compose logs dashboard`.
 

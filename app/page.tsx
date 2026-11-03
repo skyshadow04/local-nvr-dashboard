@@ -26,6 +26,7 @@ export default function Home() {
   const [dropTargetCameraId, setDropTargetCameraId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCameraPanelOpen, setIsCameraPanelOpen] = useState(false);
   const [fullscreenCameraIds, setFullscreenCameraIds] = useState<string[]>([]);
   const [fullscreenViewCount, setFullscreenViewCount] = useState<FullscreenViewCount>(1);
   const [viewMode, setViewMode] = useState<'auto' | '2x2' | '3x3' | '4x4'>('auto');
@@ -60,6 +61,17 @@ export default function Home() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    if (!isCameraPanelOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsCameraPanelOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCameraPanelOpen]);
 
   useEffect(() => {
     if (cameras.length > 0 && !fullscreenSelectionInitializedRef.current) {
@@ -306,11 +318,25 @@ export default function Home() {
   return (
     <main
       ref={dashboardRef}
-      className={`min-h-screen h-screen bg-slate-950 text-slate-100 overflow-hidden ${isFullscreen ? 'p-3' : 'p-4 md:p-6'}`}
+      className={`relative min-h-screen h-screen bg-slate-950 text-slate-100 overflow-hidden ${isFullscreen ? 'p-3' : 'p-4 md:p-6'}`}
     >
-      {!isFullscreen && <div className="flex items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Centralized Local NVR Hub</h1>
-        <div className="flex items-center gap-2">
+      {!isFullscreen && <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsCameraPanelOpen(true)}
+            aria-label="Open camera setup menu"
+            aria-expanded={isCameraPanelOpen}
+            aria-controls="camera-setup-panel"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 lg:hidden"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="truncate text-lg font-bold tracking-tight sm:text-2xl">Centralized Local NVR Hub</h1>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto">
           {(['auto', '2x2', '3x3', '4x4'] as const).map((mode) => (
             <button
               key={mode}
@@ -339,10 +365,36 @@ export default function Home() {
         </div>
       </div>}
 
-      <div className={`${isFullscreen ? 'h-full' : 'grid grid-cols-1 gap-4 lg:grid-cols-4 h-[calc(100vh-88px)]'}`}>
+      <div className={`${isFullscreen ? 'h-full' : 'grid grid-cols-1 gap-4 lg:grid-cols-4 h-[calc(100vh-140px)] sm:h-[calc(100vh-88px)]'}`}>
         {/* Left Control Panel: Add NVR Feeds */}
-        {!isFullscreen && <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl h-fit max-h-full overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-4 text-slate-300">Connect NVR Cameras</h2>
+        {!isFullscreen && isCameraPanelOpen && (
+          <button
+            type="button"
+            aria-label="Close camera setup menu"
+            onClick={() => setIsCameraPanelOpen(false)}
+            className="absolute inset-0 z-30 bg-black/70 lg:hidden"
+          />
+        )}
+        {!isFullscreen && <aside
+          id="camera-setup-panel"
+          aria-label="Camera setup and open cameras"
+          className={`z-40 overflow-y-auto border border-slate-800 bg-slate-900 p-4 lg:relative lg:inset-auto lg:z-auto lg:block lg:h-fit lg:max-h-full lg:rounded-xl ${
+            isCameraPanelOpen
+              ? 'absolute inset-y-0 left-0 h-full w-[min(90vw,24rem)] rounded-none'
+              : 'hidden'
+          }`}
+        >
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-300">Connect NVR Cameras</h2>
+            <button
+              type="button"
+              onClick={() => setIsCameraPanelOpen(false)}
+              aria-label="Close camera setup menu"
+              className="rounded border border-slate-700 px-2 py-1 text-slate-300 hover:bg-slate-800 lg:hidden"
+            >
+              Close
+            </button>
+          </div>
           <form onSubmit={addCamera} className="space-y-3 text-sm">
             <div>
               <label className="block mb-1 text-slate-400">Manufacturer Type</label>
@@ -428,7 +480,7 @@ export default function Home() {
               )}
             </div>
           </div>
-        </div>}
+        </aside>}
 
         {/* Right Panel: The Camera Matrix Grid Layout */}
         <div className={`${isFullscreen ? 'flex h-full min-h-0 flex-col' : 'lg:col-span-3 h-full'} overflow-hidden`}>
