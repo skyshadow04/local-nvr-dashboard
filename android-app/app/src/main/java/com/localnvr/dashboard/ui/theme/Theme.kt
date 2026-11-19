@@ -16,6 +16,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+enum class ThemeMode {
+    SYSTEM, LIGHT, DARK
+}
+
 // Modern Slate & Indigo Dark Color Palette (Optimized for Video/NVR Monitoring)
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF818CF8),
@@ -147,10 +151,16 @@ val LocalNvrTypography = Typography(
 
 @Composable
 fun LocalNvrTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
